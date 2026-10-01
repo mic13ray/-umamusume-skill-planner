@@ -1,0 +1,1 @@
+# -umamusume-skill-planner
