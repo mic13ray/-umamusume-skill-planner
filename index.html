@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ウマ娘 スキルプランナー</title>
+
+<style>
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;
+  background:#f4f5f7;
+  margin:0;
+  color:#222;
+}
+header{
+  background:#222;
+  color:#fff;
+  padding:14px;
+  font-weight:bold;
+}
+.wrap{
+  max-width:1100px;
+  margin:auto;
+  padding:10px;
+}
+.panel{
+  background:#fff;
+  border:1px solid #ddd;
+  border-radius:12px;
+  padding:10px;
+  margin-bottom:9px;
+}
+h2{
+  font-size:15px;
+  margin:0 0 8px;
+}
+h3{
+  font-size:12px;
+  border-bottom:1px solid #aaa;
+  padding-bottom:4px;
+}
+
+.characters{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+}
+.character{
+  border:1px solid #bbb;
+  border-radius:9px;
+  padding:10px;
+  cursor:pointer;
+}
+.character.active{
+  background:#222;
+  color:white;
+}
+.character small{
+  display:block;
+  margin-top:4px;
+}
+
+.supports{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:7px;
+}
+.support{
+  border:1px solid #bbb;
+  border-radius:8px;
+  padding:6px;
+  cursor:pointer;
+}
+.support.selected{
+  outline:3px solid #222;
+  background:#eee;
+}
+.art{
+  height:55px;
+  background:#ddd;
+  border-radius:5px;
+  display:grid;
+  place-items:center;
+  font-size:20px;
+  font-weight:bold;
+}
+.support b{
+  font-size:11px;
+}
+.support small{
+  display:block;
+  font-size:9px;
+  margin-top:3px;
+}
+
+.deck{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:5px;
+  margin-top:10px;
+}
+.slot{
+  border:1px solid #bbb;
+  border-radius:7px;
+  padding:7px;
+  min-height:40px;
+  font-size:9px;
+  text-align:center;
+}
+
+.skills{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
+}
+.skill{
+  border:1px solid #bbb;
+  border-radius:8px;
+  padding:7px;
+  min-height:65px;
+  font-size:11px;
+}
+.skill b{
+  display:block;
+}
+.source{
+  display:block;
+  font-size:9px;
+  margin-top:5px;
+  line-height:1.4;
+}
+
+.characterSkill{background:#ffe5a0;}
+.supportSkill{background:#fff3c2;}
+.courseSkill{background:#e5f4e9;}
+.candidateSkill{background:#eee;}
+
+.course{
+  font-size:12px;
+  line-height:1.7;
+}
+.badge{
+  display:inline-block;
+  background:#eee;
+  border-radius:14px;
+  padding:5px 9px;
+  margin:2px;
+  font-size:10px;
+}
+
+.legend{
+  font-size:10px;
+  line-height:1.8;
+}
+.dot{
+  display:inline-block;
+  width:11px;
+  height:11px;
+  border:1px solid #aaa;
+  margin-right:3px;
+  vertical-align:-1px;
+}
+
+@media(max-width:750px){
+  .supports,.skills{
+    grid-template-columns:repeat(2,1fr);
+  }
+  .deck{
+    grid-template-columns:repeat(3,1fr);
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+ウマ娘 スキルプランナー｜東京 芝2400m テスト版
+</header>
+
+<div class="wrap">
+
+<section class="panel">
+<h2>① 育成キャラクター</h2>
+<div id="characters" class="characters"></div>
+</section>
+
+<section class="panel course">
+<h2>② コース条件</h2>
+<b>東京競馬場・芝2400m</b><br>
+距離：中距離<br>
+回り：左回り<br>
+脚質：先行（テスト固定）
+</section>
+
+<section class="panel">
+<h2>③ サポートカード</h2>
+<div style="font-size:10px;margin-bottom:7px">
+タップして選択 / 最大6枚
+</div>
+
+<div id="supports" class="supports"></div>
+
+<h3>現在の編成</h3>
+<div id="deck" class="deck"></div>
+</section>
+
+<section class="panel">
+<h2>④ 取得・候補スキル</h2>
+
+<div class="legend">
+<span class="dot characterSkill"></span>キャラクター　
+<span class="dot supportSkill"></span>編成サポカ　
+<span class="dot courseSkill"></span>コース条件　
+<span class="dot candidateSkill"></span>編成外候補
+</div>
+
+<div id="skills"></div>
+</section>
+
+<section class="panel">
+<h2>⑤ サポカ外 / 因子候補</h2>
+<div id="factors"></div>
+</section>
+
+</div>
+
+<script>
+
+const characters = [
+{
+ id:"almond",
+ name:"アーモンドアイ",
+ skills:[
+  ["Peerless Heroine","固有"],
+  ["The Next Phase","進化"],
+  ["確信された勝利","進化"],
+  ["唯一無二","覚醒"]
+ ]
+},
+{
+ id:"epiph",
+ name:"エピファネイア",
+ skills:[
+  ["光れ！弾けろ！超新星爆発！","固有"],
+  ["飛躍の予感","初期"],
+  ["意地っ張り","初期"],
+  ["憂いなし","覚醒"],
+  ["超然","覚醒"],
+  ["天意の彼方","進化"],
+  ["星奔光天","進化"]
+ ]
+}
+];
+
+const supports = [
+{
+ id:"ag",
+ name:"アドマイヤグルーヴ",
+ type:"賢さ",
+ skills:[
+ "垂れウマ回避",
+ "秋ウマ娘○",
+ "中距離コーナー○",
+ "中距離直線○",
+ "尻尾上がり",
+ "スリップストリーム",
+ "ワンチャンス",
+ "解き放つ情念",
+ "一往直前"
+ ]
+},
+{
+ id:"nb",
+ name:"ナリタブライアン",
+ type:"賢さ",
+ skills:[
+ "先行のコツ○",
+ "先行コーナー○",
+ "先行直線○",
+ "攻めの姿勢",
+ "本領発揮",
+ "飛躍の予感",
+ "憂いなし",
+ "余勢を駆って",
+ "アンストッパブル",
+ "ぶっちぎり！"
+ ]
+},
+{
+ id:"fp",
+ name:"フサイチパンドラ",
+ type:"賢さ",
+ skills:[
+ "抜け出し準備",
+ "下り坂巧者",
+ "確かな足取り",
+ "探求心",
+ "意地っ張り",
+ "余勢を駆って",
+ "実直な走り",
+ "決意の直滑降",
+ "切り替え上手"
+ ]
+},
+{
+ id:"mt",
+ name:"マチカネタンホイザ",
+ type:"スピード",
+ skills:[
+ "中距離直線○",
+ "末脚",
+ "スリップストリーム"
+ ]
+},
+{
+ id:"ef",
+ name:"エフフォーリア",
+ type:"スピード",
+ skills:[
+ "先行直線○",
+ "中距離コーナー○",
+ "末脚"
+ ]
+},
+{
+ id:"cb",
+ name:"ミスターシービー",
+ type:"スピード",
+ skills:[
+ "末脚",
+ "コーナー巧者○"
+ ]
+},
+{
+ id:"sd",
+ name:"サトノダイヤモンド",
+ type:"スピード",
+ skills:[
+ "中距離直線○",
+ "中距離コーナー○"
+ ]
+},
+{
+ id:"td",
+ name:"タップダンスシチー",
+ type:"スピード",
+ skills:[
+ "スリップストリーム",
+ "コーナー巧者○"
+ ]
+},
+{
+ id:"rs",
+ name:"ルーラーシップ",
+ type:"スタミナ",
+ skills:[
+ "中距離直線○",
+ "末脚"
+ ]
+},
+{
+ id:"ks",
+ name:"キセキ",
+ type:"スタミナ",
+ skills:[
+ "中距離コーナー○",
+ "スリップストリーム"
+ ]
+}
+];
+
+const courseSkills=[
+ "左回り○",
+ "東京レース場○",
+ "根幹距離○"
+];
+
+const recommended=[
+ "中距離直線○",
+ "中距離コーナー○",
+ "先行直線○",
+ "先行コーナー○",
+ "垂れウマ回避",
+ "本領発揮",
+ "スリップストリーム",
+ "尻尾上がり"
+];
+
+let selectedCharacter="almond";
+let selectedSupports=["ag","nb"];
+
+function render(){
+
+const char=characters.find(c=>c.id===selectedCharacter);
+
+document.getElementById("characters").innerHTML=
+characters.map(c=>`
+<div class="character ${c.id===selectedCharacter?"active":""}"
+onclick="selectCharacter('${c.id}')">
+<b>${c.name}</b>
+<small>中距離 / 先行</small>
+</div>
+`).join("");
+
+document.getElementById("supports").innerHTML=
+supports.map(s=>`
+<div class="support ${selectedSupports.includes(s.id)?"selected":""}"
+onclick="toggleSupport('${s.id}')">
+
+<div class="art">${s.name.substring(0,1)}</div>
+
+<b>${s.name}</b>
+
+<small>
+SSR / ${s.type}<br>
+${s.skills.slice(0,3).join("・")}…
+</small>
+
+</div>
+`).join("");
+
+document.getElementById("deck").innerHTML=
+Array.from({length:6},(_,i)=>{
+
+const s=supports.find(x=>x.id===selectedSupports[i]);
+
+return `
+<div class="slot">
+<b>${i+1}</b><br>
+${s?s.name+"<br>"+s.type:"未選択"}
+</div>
+`;
+
+}).join("");
+
+let sources={};
+
+selectedSupports.forEach(id=>{
+
+const s=supports.find(x=>x.id===id);
+
+s.skills.forEach(skill=>{
+
+if(!sources[skill]) sources[skill]=[];
+
+sources[skill].push(s.name);
+
+});
+
+});
+
+let all=[
+...Object.keys(sources),
+...courseSkills,
+...recommended
+];
+
+all=[...new Set(all)];
+
+let characterHTML=`
+<h3>キャラクタースキル</h3>
+
+<div class="skills">
+
+${char.skills.map(s=>`
+
+<div class="skill characterSkill">
+
+<b>${s[0]}</b>
+
+<span class="source">
+${char.name}<br>
+${s[1]}
+</span>
+
+</div>
+
+`).join("")}
+
+</div>
+`;
+
+let skillHTML=`
+<h3>取得・候補</h3>
+
+<div class="skills">
+
+${all.map(name=>{
+
+let source=sources[name];
+
+let course=courseSkills.includes(name);
+
+let css=
+source
+?"supportSkill"
+:course
+?"courseSkill"
+:"candidateSkill";
+
+let text=
+source
+?"取得元："+source.join(" / ")
+:course
+?"東京2400m 条件"
+:"編成外候補";
+
+return `
+
+<div class="skill ${css}">
+
+<b>${name}</b>
+
+<span class="source">
+${text}
+</span>
+
+</div>
+
+`;
+
+}).join("")}
+
+</div>
+`;
+
+document.getElementById("skills").innerHTML=
+characterHTML+skillHTML;
+
+let factorSkills=
+recommended.filter(s=>!sources[s]);
+
+document.getElementById("factors").innerHTML=
+factorSkills.length
+?factorSkills.map(s=>
+`<span class="badge">${s}</span>`
+).join("")
+:"主要候補を編成内でカバーしています";
+
+}
+
+function selectCharacter(id){
+
+selectedCharacter=id;
+
+render();
+
+}
+
+function toggleSupport(id){
+
+if(selectedSupports.includes(id)){
+
+selectedSupports=
+selectedSupports.filter(x=>x!==id);
+
+}else{
+
+if(selectedSupports.length>=6){
+
+alert("サポートカードは最大6枚です");
+
+return;
+
+}
+
+selectedSupports.push(id);
+
+}
+
+render();
+
+}
+
+render();
+
+</script>
+
+</body>
+</html>
